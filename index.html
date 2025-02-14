@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Downloader</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, system-ui, sans-serif;
+        }
+
+        body {
+            background: #f7f7f7;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: #ff0000;
+            color: white;
+            text-align: center;
+            padding: 2rem 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        .download-box {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        button {
+            background: #ff0000;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #cc0000;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .error {
+            color: #ff0000;
+            margin: 1rem 0;
+            display: none;
+        }
+
+        .result {
+            display: none;
+            margin-top: 2rem;
+        }
+
+        .video-info {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .thumbnail {
+            width: 200px;
+            height: 112.5px;
+            background: #eee;
+            border-radius: 4px;
+        }
+
+        .info {
+            flex: 1;
+        }
+
+        .title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .download-options {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .download-btn {
+            background: #4CAF50;
+            width: 100%;
+        }
+
+        .download-btn:hover {
+            background: #45a049;
+        }
+
+        .history {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+        }
+
+        .history h2 {
+            margin-bottom: 1rem;
+        }
+
+        .history-item {
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 1rem;
+        }
+
+        @media (max-width: 600px) {
+            .input-group {
+                flex-direction: column;
+            }
+            
+            .video-info {
+                flex-direction: column;
+            }
+
+            .thumbnail {
+                width: 100%;
+                height: auto;
+                aspect-ratio: 16/9;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>YouTube Video & Shorts Downloader</h1>
+        <p>Download any YouTube video or Short in high quality</p>
+    </div>
+
+    <div class="container">
+        <div class="download-box">
+            <div class="input-group">
+                <input type="text" id="url-input" placeholder="Paste YouTube URL here..." autocomplete="off">
+                <button id="fetch-btn">Fetch Video</button>
+            </div>
+            <div id="error" class="error"></div>
+            <div id="loading" class="loading">
+                <p>Loading video information...</p>
+            </div>
+            <div id="result" class="result">
+                <div class="video-info">
+                    <div class="thumbnail">
+                        <img id="thumbnail-img" width="200" height="112.5" alt="Video thumbnail">
+                    </div>
+                    <div class="info">
+                        <div id="video-title" class="title"></div>
+                        <div id="video-type"></div>
+                    </div>
+                </div>
+                <div class="download-options">
+                    <button class="download-btn" data-quality="high">Download High Quality (1080p)</button>
+                    <button class="download-btn" data-quality="medium">Download Medium Quality (720p)</button>
+                    <button class="download-btn" data-quality="low">Download Low Quality (480p)</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="history">
+            <h2>Download History</h2>
+            <div id="history-list"></div>
+        </div>
+    </div>
+
+    <script>
+        class SafeStorage {
+            constructor() {
+                this.memoryStorage = new Map();
+            }
+
+            get(key) {
+                try {
+                    const item = sessionStorage.getItem(key);
+                    return item ? JSON.parse(item) : null;
+                } catch {
+                    return this.memoryStorage.get(key) || null;
+                }
+            }
+
+            set(key, value) {
+                try {
+                    sessionStorage.setItem(key, JSON.stringify(value));
+                } catch {
+                    this.memoryStorage.set(key, value);
+                }
+            }
+        }
+
+        class YouTubeDownloader {
+            constructor() {
+                this.storage = new SafeStorage();
+                this.elements = {
+                    urlInput: document.getElementById('url-input'),
+                    fetchBtn: document.getElementById('fetch-btn'),
+                    error: document.getElementById('error'),
+                    loading: document.getElementById('loading'),
+                    result: document.getElementById('result'),
+                    thumbnailImg: document.getElementById('thumbnail-img'),
+                    videoTitle: document.getElementById('video-title'),
+                    videoType: document.getElementById('video-type'),
+                    historyList: document.getElementById('history-list')
+                };
+
+                this.bindEvents();
+                this.updateHistory();
+            }
+
+            bindEvents() {
+                this.elements.fetchBtn.addEventListener('click', () => this.handleFetch());
+                this.elements.urlInput.addEventListener('input', () => this.hideError());
+                
+                document.querySelectorAll('.download-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => this.handleDownload(e));
+                });
+            }
+
+            hideError() {
+                this.elements.error.style.display = 'none';
+            }
+
+            showError(message) {
+                this.elements.error.textContent = message;
+                this.elements.error.style.display = 'block';
+                this.elements.loading.style.display = 'none';
+                this.elements.result.style.display = 'none';
+            }
+
+            validateUrl(url) {
+                if (!url) return false;
+                
+                const patterns = [
+                    /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)[a-zA-Z0-9_-]{11}/,
+                    /^(https?:\/\/)?(www\.)?youtube\.com\/shorts\/[a-zA-Z0-9_-]{11}/
+                ];
+                
+                return patterns.some(pattern => pattern.test(url));
+            }
+
+            async handleFetch() {
+                const url = this.elements.urlInput.value.trim();
+                
+                if (!this.validateUrl(url)) {
+                    this.showError('Please enter a valid YouTube URL');
+                    return;
+                }
+
+                this.elements.loading.style.display = 'block';
+                this.elements.result.style.display = 'none';
+                this.hideError();
+
+                try {
+                    await this.fetchVideoInfo(url);
+                } catch (error) {
+                    this.showError('Failed to fetch video information. Please try again.');
+                }
+            }
+
+            async fetchVideoInfo(url) {
+                // Simulate API call delay
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                const videoId = this.extractVideoId(url);
+                const isShort = url.includes('/shorts/');
+
+                if (!videoId) {
+                    throw new Error('Invalid video ID');
+                }
+
+                // Set thumbnail
+                this.elements.thumbnailImg.src = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+                
+                // Set video info
+                this.elements.videoTitle.textContent = isShort ? 
+                    'Sample YouTube Short Title' : 
+                    'Sample YouTube Video Title';
+                
+                this.elements.videoType.textContent = isShort ?
+                    'YouTube Short • Duration: <60 seconds' :
+                    'YouTube Video • Duration: 10:30';
+
+                this.elements.loading.style.display = 'none';
+                this.elements.result.style.display = 'block';
+            }
+
+            extractVideoId(url) {
+                const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/))([a-zA-Z0-9_-]{11})/);
+                return match ? match[1] : null;
+            }
+
+            handleDownload(e) {
+                const quality = e.target.dataset.quality;
+                const url = this.elements.urlInput.value;
+                const title = this.elements.videoTitle.textContent;
+                const isShort = url.includes('/shorts/');
+
+                // Add to history
+                const history = this.storage.get('downloadHistory') || [];
+                history.unshift({
+                    url,
+                    title,
+                    quality,
+                    type: isShort ? 'Short' : 'Video',
+                    date: new Date().toLocaleString()
+                });
+
+                // Keep only last 10 items
+                this.storage.set('downloadHistory', history.slice(0, 10));
+                this.updateHistory();
+
+                // Simulate download start
+                alert(`Download started in ${quality} quality`);
+            }
+
+            updateHistory() {
+                const history = this.storage.get('downloadHistory') || [];
+                this.elements.historyList.innerHTML = history.map(item => `
+                    <div class="history-item">
+                        <strong>${item.title}</strong>
+                        <p>${item.type} • ${item.quality} • ${item.date}</p>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Initialize after DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new YouTubeDownloader();
+        });
+    </script>
+</body>
+                  </html>
