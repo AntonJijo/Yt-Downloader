@@ -9,7 +9,7 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: -apple-system, system-ui, sans-serif;
+            font-family: Arial, sans-serif;
         }
 
         body {
@@ -22,26 +22,21 @@
             background: #ff0000;
             color: white;
             text-align: center;
-            padding: 2rem 1rem;
+            padding: 1.5rem;
             margin-bottom: 2rem;
-        }
-
-        .header h1 {
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
         }
 
         .container {
             max-width: 800px;
-            margin: 0 auto;
-            padding: 0 1rem;
+            margin: auto;
+            padding: 1rem;
         }
 
-        .download-box {
+        .box {
             background: white;
+            padding: 2rem;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            padding: 2rem;
             margin-bottom: 2rem;
         }
 
@@ -66,7 +61,6 @@
             padding: 0.75rem 1.5rem;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 1rem;
             transition: background 0.2s;
         }
 
@@ -74,98 +68,71 @@
             background: #cc0000;
         }
 
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-
         .error {
-            color: #ff0000;
-            margin: 1rem 0;
+            color: red;
+            margin-top: 1rem;
             display: none;
         }
 
-        .result {
+        .loading {
+            text-align: center;
+            margin-top: 1rem;
             display: none;
-            margin-top: 2rem;
         }
 
         .video-info {
             display: flex;
-            gap: 2rem;
-            margin-bottom: 1.5rem;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1rem;
         }
 
         .thumbnail {
-            width: 200px;
-            height: 112.5px;
+            width: 120px;
+            height: 90px;
             background: #eee;
             border-radius: 4px;
         }
 
-        .info {
-            flex: 1;
-        }
-
         .title {
-            font-size: 1.2rem;
             font-weight: bold;
-            margin-bottom: 0.5rem;
         }
 
         .download-options {
-            display: grid;
-            gap: 1rem;
+            margin-top: 1rem;
         }
 
         .download-btn {
-            background: #4CAF50;
-            width: 100%;
+            background: green;
+            margin: 0.5rem 0;
         }
 
         .download-btn:hover {
-            background: #45a049;
-        }
-
-        .history {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            padding: 2rem;
-        }
-
-        .history h2 {
-            margin-bottom: 1rem;
+            background: darkgreen;
         }
 
         .history-item {
+            display: flex;
+            justify-content: space-between;
             padding: 1rem;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid #ddd;
         }
 
-        .history-item:last-child {
-            border-bottom: none;
+        .history-item button {
+            background: blue;
         }
 
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 1rem;
+        .history-item button:hover {
+            background: darkblue;
         }
 
         @media (max-width: 600px) {
             .input-group {
                 flex-direction: column;
             }
-            
             .video-info {
                 flex-direction: column;
-            }
-
-            .thumbnail {
-                width: 100%;
-                height: auto;
-                aspect-ratio: 16/9;
+                align-items: flex-start;
             }
         }
     </style>
@@ -177,34 +144,28 @@
     </div>
 
     <div class="container">
-        <div class="download-box">
+        <div class="box">
             <div class="input-group">
-                <input type="text" id="url-input" placeholder="Paste YouTube URL here..." autocomplete="off">
+                <input type="text" id="url-input" placeholder="Paste YouTube URL here...">
                 <button id="fetch-btn">Fetch Video</button>
             </div>
             <div id="error" class="error"></div>
-            <div id="loading" class="loading">
-                <p>Loading video information...</p>
+            <div id="loading" class="loading">Loading video information...</div>
+            <div id="video-info" class="video-info" style="display: none;">
+                <img id="thumbnail" class="thumbnail">
+                <div>
+                    <div id="video-title" class="title"></div>
+                    <div id="video-type"></div>
+                </div>
             </div>
-            <div id="result" class="result">
-                <div class="video-info">
-                    <div class="thumbnail">
-                        <img id="thumbnail-img" width="200" height="112.5" alt="Video thumbnail">
-                    </div>
-                    <div class="info">
-                        <div id="video-title" class="title"></div>
-                        <div id="video-type"></div>
-                    </div>
-                </div>
-                <div class="download-options">
-                    <button class="download-btn" data-quality="high">Download High Quality (1080p)</button>
-                    <button class="download-btn" data-quality="medium">Download Medium Quality (720p)</button>
-                    <button class="download-btn" data-quality="low">Download Low Quality (480p)</button>
-                </div>
+            <div class="download-options" id="download-options" style="display: none;">
+                <button class="download-btn" data-quality="1080p">Download 1080p</button>
+                <button class="download-btn" data-quality="720p">Download 720p</button>
+                <button class="download-btn" data-quality="480p">Download 480p</button>
             </div>
         </div>
 
-        <div class="history">
+        <div class="box">
             <h2>Download History</h2>
             <div id="history-list"></div>
         </div>
@@ -218,10 +179,9 @@
 
             get(key) {
                 try {
-                    const item = sessionStorage.getItem(key);
-                    return item ? JSON.parse(item) : null;
+                    return JSON.parse(sessionStorage.getItem(key)) || [];
                 } catch {
-                    return this.memoryStorage.get(key) || null;
+                    return this.memoryStorage.get(key) || [];
                 }
             }
 
@@ -242,10 +202,11 @@
                     fetchBtn: document.getElementById('fetch-btn'),
                     error: document.getElementById('error'),
                     loading: document.getElementById('loading'),
-                    result: document.getElementById('result'),
-                    thumbnailImg: document.getElementById('thumbnail-img'),
+                    videoInfo: document.getElementById('video-info'),
+                    thumbnail: document.getElementById('thumbnail'),
                     videoTitle: document.getElementById('video-title'),
                     videoType: document.getElementById('video-type'),
+                    downloadOptions: document.getElementById('download-options'),
                     historyList: document.getElementById('history-list')
                 };
 
@@ -254,126 +215,40 @@
             }
 
             bindEvents() {
-                this.elements.fetchBtn.addEventListener('click', () => this.handleFetch());
-                this.elements.urlInput.addEventListener('input', () => this.hideError());
-                
-                document.querySelectorAll('.download-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => this.handleDownload(e));
-                });
+                this.elements.fetchBtn.addEventListener('click', () => this.fetchVideoInfo());
             }
 
-            hideError() {
-                this.elements.error.style.display = 'none';
-            }
-
-            showError(message) {
-                this.elements.error.textContent = message;
-                this.elements.error.style.display = 'block';
-                this.elements.loading.style.display = 'none';
-                this.elements.result.style.display = 'none';
-            }
-
-            validateUrl(url) {
-                if (!url) return false;
-                
-                const patterns = [
-                    /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)[a-zA-Z0-9_-]{11}/,
-                    /^(https?:\/\/)?(www\.)?youtube\.com\/shorts\/[a-zA-Z0-9_-]{11}/
-                ];
-                
-                return patterns.some(pattern => pattern.test(url));
-            }
-
-            async handleFetch() {
+            async fetchVideoInfo() {
                 const url = this.elements.urlInput.value.trim();
-                
-                if (!this.validateUrl(url)) {
-                    this.showError('Please enter a valid YouTube URL');
+                if (!url) {
+                    this.showError('Enter a valid YouTube URL');
                     return;
                 }
 
                 this.elements.loading.style.display = 'block';
-                this.elements.result.style.display = 'none';
-                this.hideError();
+                this.elements.videoInfo.style.display = 'none';
+                this.elements.downloadOptions.style.display = 'none';
 
-                try {
-                    await this.fetchVideoInfo(url);
-                } catch (error) {
-                    this.showError('Failed to fetch video information. Please try again.');
-                }
+                // Fake API response
+                setTimeout(() => {
+                    this.elements.loading.style.display = 'none';
+                    this.elements.videoTitle.textContent = "Example Video Title";  
+                    this.elements.thumbnail.src = `https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg`;
+                    this.elements.videoInfo.style.display = 'flex';
+                    this.elements.downloadOptions.style.display = 'block';
+                }, 1000);
             }
 
-            async fetchVideoInfo(url) {
-                // Simulate API call delay
-                await new Promise(resolve => setTimeout(resolve, 1000));
-
-                const videoId = this.extractVideoId(url);
-                const isShort = url.includes('/shorts/');
-
-                if (!videoId) {
-                    throw new Error('Invalid video ID');
-                }
-
-                // Set thumbnail
-                this.elements.thumbnailImg.src = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
-                
-                // Set video info
-                this.elements.videoTitle.textContent = isShort ? 
-                    'Sample YouTube Short Title' : 
-                    'Sample YouTube Video Title';
-                
-                this.elements.videoType.textContent = isShort ?
-                    'YouTube Short • Duration: <60 seconds' :
-                    'YouTube Video • Duration: 10:30';
-
-                this.elements.loading.style.display = 'none';
-                this.elements.result.style.display = 'block';
-            }
-
-            extractVideoId(url) {
-                const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/))([a-zA-Z0-9_-]{11})/);
-                return match ? match[1] : null;
-            }
-
-            handleDownload(e) {
-                const quality = e.target.dataset.quality;
-                const url = this.elements.urlInput.value;
-                const title = this.elements.videoTitle.textContent;
-                const isShort = url.includes('/shorts/');
-
-                // Add to history
-                const history = this.storage.get('downloadHistory') || [];
-                history.unshift({
-                    url,
-                    title,
-                    quality,
-                    type: isShort ? 'Short' : 'Video',
-                    date: new Date().toLocaleString()
-                });
-
-                // Keep only last 10 items
-                this.storage.set('downloadHistory', history.slice(0, 10));
-                this.updateHistory();
-
-                // Simulate download start
-                alert(`Download started in ${quality} quality`);
+            handleDownload(quality) {
+                alert(`Downloading in ${quality}`);
             }
 
             updateHistory() {
-                const history = this.storage.get('downloadHistory') || [];
-                this.elements.historyList.innerHTML = history.map(item => `
-                    <div class="history-item">
-                        <strong>${item.title}</strong>
-                        <p>${item.type} • ${item.quality} • ${item.date}</p>
-                    </div>
-                `).join('');
+                this.elements.historyList.innerHTML = `<p>No history yet</p>`;
             }
         }
 
-        // Initialize after DOM is loaded
-        document.addEventListener('DOMContentLoaded', () => {
-            new YouTubeDownloader();
-        });
+        document.addEventListener('DOMContentLoaded', () => new YouTubeDownloader());
     </script>
 </body>
-                  </html>
+</html>
